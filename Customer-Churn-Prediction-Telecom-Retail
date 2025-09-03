@@ -1,0 +1,109 @@
+# customer_churn_prediction.py
+
+# ===============================
+# Customer Churn Prediction (Telecom/Retail)
+# Models: Logistic Regression, Random Forest, XGBoost
+# ===============================
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import accuracy_score, classification_report
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+
+# -------------------------------
+# 1. Load Dataset
+# -------------------------------
+# Replace with your actual dataset path
+data = pd.read_csv("customer_churn.csv")
+
+print("Dataset Shape:", data.shape)
+print(data.head())
+
+# -------------------------------
+# 2. Data Preprocessing
+# -------------------------------
+# Handle missing values
+data = data.dropna()
+
+# Encode categorical variables
+label_encoders = {}
+for column in data.select_dtypes(include=['object']).columns:
+    le = LabelEncoder()
+    data[column] = le.fit_transform(data[column])
+    label_encoders[column] = le
+
+# Define features and target
+X = data.drop("Churn", axis=1)   # assuming target column is 'Churn'
+y = data["Churn"]
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Scale features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# -------------------------------
+# 3. Model Training & Evaluation
+# -------------------------------
+results = {}
+
+# Logistic Regression
+log_model = LogisticRegression(max_iter=1000)
+log_model.fit(X_train, y_train)
+y_pred_log = log_model.predict(X_test)
+results['Logistic Regression'] = accuracy_score(y_test, y_pred_log)
+
+# Random Forest
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+y_pred_rf = rf_model.predict(X_test)
+results['Random Forest'] = accuracy_score(y_test, y_pred_rf)
+
+# XGBoost
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+xgb_model.fit(X_train, y_train)
+y_pred_xgb = xgb_model.predict(X_test)
+results['XGBoost'] = accuracy_score(y_test, y_pred_xgb)
+
+# -------------------------------
+# 4. Results
+# -------------------------------
+print("\nModel Performance:")
+for model, acc in results.items():
+    print(f"{model}: {acc:.4f}")
+
+print("\nClassification Report (XGBoost):")
+print(classification_report(y_test, y_pred_xgb))
+
+# -------------------------------
+# 5. Feature Importance (Random Forest + XGBoost)
+# -------------------------------
+feature_names = data.drop("Churn", axis=1).columns
+
+# Random Forest Feature Importance
+importances_rf = rf_model.feature_importances_
+rf_imp = pd.Series(importances_rf, index=feature_names).sort_values(ascending=False)
+
+plt.figure(figsize=(10,5))
+sns.barplot(x=rf_imp.values, y=rf_imp.index)
+plt.title("Random Forest Feature Importance")
+plt.show()
+
+# XGBoost Feature Importance
+importances_xgb = xgb_model.feature_importances_
+xgb_imp = pd.Series(importances_xgb, index=feature_names).sort_values(ascending=False)
+
+plt.figure(figsize=(10,5))
+sns.barplot(x=xgb_imp.values, y=xgb_imp.index)
+plt.title("XGBoost Feature Importance")
+plt.show()
